@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>オーケー株式会社 DCF感応度分析</title>
+<title>M&amp;A案件 感応度分析</title>
 <style>
   :root{
     --bg:#ffffff; --panel:#f7f8fa; --panel2:#eef0f3; --border:#d8dce2;
@@ -41,13 +41,27 @@
   .slider-block label{display:flex; justify-content:space-between; font-size:12.5px; color:var(--sub); margin-bottom:8px;}
   .slider-block label b{color:var(--text); font-size:13px;}
   input[type=range]{
-    width:100%; -webkit-appearance:none; height:5px; border-radius:3px;
+    width:100%; -webkit-appearance:none; appearance:none; height:5px; border-radius:3px;
     background:#d8dce2; outline:none;
   }
+  /* Safari renders the track via this pseudo-element separately from
+     the input's own background, so it must be styled explicitly or the
+     track can appear as the OS-default (blue/gray) bar on macOS. */
+  input[type=range]::-webkit-slider-runnable-track{
+    -webkit-appearance:none; height:5px; border-radius:3px; background:#d8dce2;
+  }
+  input[type=range]::-moz-range-track{
+    height:5px; border-radius:3px; background:#d8dce2;
+  }
   input[type=range]::-webkit-slider-thumb{
-    -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+    -webkit-appearance:none; appearance:none; width:16px; height:16px; border-radius:50%;
     background:var(--accent); cursor:pointer; border:2px solid #ffffff;
     box-shadow:0 0 0 1px var(--border);
+    margin-top:-5.5px; /* vertically center thumb on the track in Safari/Chrome */
+  }
+  input[type=range]::-moz-range-thumb{
+    width:16px; height:16px; border-radius:50%; background:var(--accent);
+    cursor:pointer; border:2px solid #ffffff; box-shadow:0 0 0 1px var(--border);
   }
   .presets{display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;}
   .presets button{
@@ -79,7 +93,7 @@
 </head>
 <body>
 
-<h1>オーケー株式会社 DCF感応度分析</h1>
+<h1>M&amp;A案件 感応度分析</h1>
 <div class="subtitle">WACC・永久成長率をスライダーで動かすと、各シナリオの企業価値がリアルタイムに再計算されます</div>
 
 <div class="layout">
@@ -176,6 +190,24 @@ function calcEV(fcf, wacc, g){
 function fmtBn(mm){ return (mm/100).toLocaleString('ja-JP',{maximumFractionDigits:0}); }
 function fmtMm(mm){ return Math.round(mm).toLocaleString('ja-JP'); }
 
+// Safari has historically had unreliable support for assigning innerHTML
+// directly on <svg> (an SVGElement rather than HTMLElement), which can
+// cause the chart to render blank or only partially on macOS. Parsing the
+// markup explicitly as SVG XML and importing the nodes works reliably
+// across Safari, Chrome, and Firefox.
+function setSvgContent(svg, innerMarkup){
+  const doc = new DOMParser().parseFromString(
+    `<svg xmlns="http://www.w3.org/2000/svg">${innerMarkup}</svg>`,
+    'image/svg+xml'
+  );
+  const parseError = doc.querySelector('parsererror');
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  if (parseError) return; // fail safe: leave chart empty rather than throw
+  Array.from(doc.documentElement.childNodes).forEach(node=>{
+    svg.appendChild(document.importNode(node, true));
+  });
+}
+
 function render(){
   const wacc = parseFloat(document.getElementById('waccSlider').value)/100;
   const g = parseFloat(document.getElementById('gSlider').value)/100;
@@ -243,7 +275,7 @@ function drawChart(results, show){
     svgContent += `<text x="${x+barW/2}" y="${y-8}" text-anchor="middle" class="bar-value">${val.toLocaleString('ja-JP',{maximumFractionDigits:0})}億円</text>`;
     svgContent += `<text x="${x+barW/2}" y="${h-padB+16}" text-anchor="middle" class="bar-label">${k}</text>`;
   });
-  svg.innerHTML = svgContent;
+  setSvgContent(svg, svgContent);
 }
 
 function drawAssumptions(){
