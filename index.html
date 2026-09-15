@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>オーケー株式会社 DCF感応度分析</title>
+<style>
+  :root{
+    --bg:#ffffff; --panel:#f7f8fa; --panel2:#eef0f3; --border:#d8dce2;
+    --text:#111418; --sub:#5b6472; --accent:#2563eb; --accent2:#ff9f4f;
+    --accent3:#16a34a; --danger:#dc2626;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    padding:24px;
+  }
+  h1{font-size:20px; margin:0 0 4px;}
+  .subtitle{color:var(--sub); font-size:13px; margin-bottom:20px;}
+  .layout{display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start;}
+  .cards{display:flex; gap:14px; flex:1; min-width:280px; flex-wrap:wrap;}
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:16px; flex:1; min-width:230px; position:relative;
+  }
+  .card.on{ box-shadow:0 0 0 1.5px var(--accentc, var(--accent)) inset; }
+  .card h3{margin:0 0 2px; font-size:14px; display:flex; align-items:center; gap:6px;}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .card .desc{color:var(--sub); font-size:11px; margin-bottom:12px; line-height:1.5;}
+  .metric{display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed var(--border); font-size:13px;}
+  .metric:last-child{border-bottom:none;}
+  .metric .label{color:var(--sub);}
+  .metric .value{font-weight:600; font-variant-numeric:tabular-nums;}
+  .metric .value.big{font-size:16px;}
+  .controls{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:18px 20px; width:290px; flex-shrink:0;
+  }
+  .controls h3{margin:0 0 14px; font-size:14px;}
+  .slider-block{margin-bottom:22px;}
+  .slider-block label{display:flex; justify-content:space-between; font-size:12.5px; color:var(--sub); margin-bottom:8px;}
+  .slider-block label b{color:var(--text); font-size:13px;}
+  input[type=range]{
+    width:100%; -webkit-appearance:none; height:5px; border-radius:3px;
+    background:#d8dce2; outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+    background:var(--accent); cursor:pointer; border:2px solid #ffffff;
+    box-shadow:0 0 0 1px var(--border);
+  }
+  .presets{display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;}
+  .presets button{
+    background:var(--panel2); border:1px solid var(--border); color:var(--sub);
+    font-size:11px; padding:4px 8px; border-radius:6px; cursor:pointer;
+  }
+  .presets button:hover{color:var(--text); border-color:var(--accent);}
+  .footnote{color:var(--sub); font-size:10.5px; margin-top:6px; line-height:1.6;}
+  .divider{border-top:1px solid var(--border); margin:18px 0;}
+  .bottom-row{display:flex; gap:16px; margin-top:16px; flex-wrap:wrap;}
+  .chart-panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:16px 20px; flex:1; min-width:320px;
+  }
+  .chart-panel h3{margin:0 0 12px; font-size:13px; color:var(--sub); font-weight:500;}
+  svg{width:100%; height:auto; display:block;}
+  .bar-label{font-size:10.5px; fill:var(--sub);}
+  .bar-value{font-size:11px; fill:var(--text); font-weight:600;}
+  .assump-table{width:100%; border-collapse:collapse; font-size:11.5px; margin-top:6px;}
+  .assump-table th,.assump-table td{ text-align:right; padding:5px 6px; border-bottom:1px solid var(--border); }
+  .assump-table th:first-child, .assump-table td:first-child{ text-align:left; color:var(--sub);}
+  .assump-table th{color:var(--sub); font-weight:500;}
+  .comp-section{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding:16px 20px; margin-top:16px;
+  }
+  .comp-section h3{margin:0 0 12px; font-size:13px; color:var(--sub); font-weight:500;}
+</style>
+</head>
+<body>
+
+<h1>オーケー株式会社 DCF感応度分析</h1>
+<div class="subtitle">WACC・永久成長率をスライダーで動かすと、各シナリオの企業価値がリアルタイムに再計算されます</div>
+
+<div class="layout">
+
+  <div class="controls">
+    <h3>変数設定</h3>
+
+    <div class="slider-block">
+      <label><span>WACC(割引率)</span><b id="waccLabel">6.5%</b></label>
+      <input type="range" id="waccSlider" min="5.5" max="8.0" step="0.1" value="6.5">
+      <div class="presets">
+        <button onclick="setWacc(6.0)">6.0%</button>
+        <button onclick="setWacc(6.5)">6.5%</button>
+        <button onclick="setWacc(7.0)">7.0%</button>
+      </div>
+    </div>
+
+    <div class="slider-block">
+      <label><span>永久成長率(g)</span><b id="gLabel">2.0%</b></label>
+      <input type="range" id="gSlider" min="0.0" max="3.5" step="0.1" value="2.0">
+      <div class="presets">
+        <button onclick="setG(1.0)">1.0%</button>
+        <button onclick="setG(2.0)">2.0%</button>
+        <button onclick="setG(3.0)">3.0%</button>
+      </div>
+    </div>
+
+    <div class="slider-block">
+      <label><span>コントロールプレミアム</span><b id="premLabel">20%</b></label>
+      <input type="range" id="premSlider" min="0" max="40" step="5" value="20">
+    </div>
+
+    <div class="divider"></div>
+    <h3 style="margin-bottom:10px;">表示するシナリオ</h3>
+    <div style="display:flex; flex-direction:column; gap:8px; font-size:12.5px;">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <input type="checkbox" id="chkA" checked style="accent-color:#2563eb;"> <span class="dot" style="background:#2563eb"></span> A: 班の正式モデル(現状)
+      </label>
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <input type="checkbox" id="chkB" checked style="accent-color:#16a34a;"> <span class="dot" style="background:#16a34a"></span> B: ネットデット調整版
+      </label>
+    </div>
+
+    <div class="footnote">
+      買主提示額7,000億円は下部グラフに基準線として表示されます。<br>
+      FCF(27〜30/3期): 21,667/26,865/32,336/38,736百万円(班のExcelと一致)<br>
+      TV = FCF30/(WACC-g) ※班の方式に統一
+    </div>
+  </div>
+
+  <div class="cards" id="cardsWrap"></div>
+</div>
+
+<div class="bottom-row">
+  <div class="chart-panel">
+    <h3>株式価値(コントロールプレミアム込み)比較 — 単位:億円</h3>
+    <svg id="barChart" viewBox="0 0 640 220"></svg>
+  </div>
+  <div class="chart-panel" style="max-width:360px;">
+    <h3>前提サマリー(百万円)</h3>
+    <table class="assump-table" id="assumpTable"></table>
+  </div>
+</div>
+
+<div class="comp-section">
+  <h3>参考:類似会社比較法(ハローズ・バローHD・ベルク・トライアルHDの4社、2026年度予想EV/EBITDA基準)</h3>
+  <table class="assump-table">
+    <tr><th></th><th>ハローズ</th><th>バローHD</th><th>ベルク</th><th>トライアルHD</th><th>平均</th><th>中央値</th></tr>
+    <tr><td>EV/EBITDA倍率</td><td>4.22x</td><td>5.40x</td><td>6.21x</td><td>10.64x</td><td>6.62x</td><td>5.81x</td></tr>
+    <tr><td>インプライドEV(オーケーEBITDA58,917百万円)</td><td colspan="4"></td><td>389,871百万円</td><td>342,038百万円</td></tr>
+  </table>
+  <div class="footnote" style="margin-top:8px;">
+    トライアルHDが高倍率(ディスカウント業態・高成長)で平均を押し上げるため、中央値(5.81倍→約3,420億円)を中心値として見るのが妥当。DCFのレンジ(下記カード参照)とは大きな乖離があり、類似会社法は妥当性チェックの参考値に留めるのが実務的な扱い。
+  </div>
+</div>
+
+<script>
+const FCF = {
+  A: {27:21667, 28:26865, 29:32336, 30:38736, netDebt:94106, label:"A: 班の正式モデル(現状)", color:"#2563eb", desc:"班のExcel(OKテータ.xlsx)の数値。成長率10%維持+不採算店舗閉鎖▲105億(28/3期以降)、閉店コスト30億は営業利益に織込み。ネットデットは26/3末実績94,106のまま(追徴課税・訴訟引当の調整は未反映)。"},
+  B: {27:21667, 28:26865, 29:32336, 30:38736, netDebt:99682, label:"B: ネットデット調整版", color:"#16a34a", desc:"Aと同じFCFだが、ネットデットに追徴課税27億(既払い)+訴訟引当(税引後28.8億)を加算し99,682百万円に調整。"},
+};
+const OFFER_PRICE_BN = 7000; // 億円
+
+function calcEV(fcf, wacc, g){
+  // TV = FCF_30 / (WACC-g)  ※班の方式に統一((1+g)を乗じない)
+  const years=[27,28,29,30];
+  let pv=0;
+  years.forEach((y,i)=>{ pv += fcf[y]/Math.pow(1+wacc, i+1); });
+  const tv = fcf[30]/(wacc-g);
+  const pvTv = tv/Math.pow(1+wacc,4);
+  return {ev: pv+pvTv, pvFcf: pv, pvTv: pvTv};
+}
+
+function fmtBn(mm){ return (mm/100).toLocaleString('ja-JP',{maximumFractionDigits:0}); }
+function fmtMm(mm){ return Math.round(mm).toLocaleString('ja-JP'); }
+
+function render(){
+  const wacc = parseFloat(document.getElementById('waccSlider').value)/100;
+  const g = parseFloat(document.getElementById('gSlider').value)/100;
+  const prem = parseFloat(document.getElementById('premSlider').value)/100;
+  document.getElementById('waccLabel').innerText = (wacc*100).toFixed(1)+"%";
+  document.getElementById('gLabel').innerText = (g*100).toFixed(1)+"%";
+  document.getElementById('premLabel').innerText = (prem*100).toFixed(0)+"%";
+
+  const show = {A: document.getElementById('chkA').checked, B: document.getElementById('chkB').checked};
+
+  const wrap = document.getElementById('cardsWrap');
+  wrap.innerHTML = "";
+  const results = {};
+
+  Object.keys(FCF).forEach(key=>{
+    const f = FCF[key];
+    const {ev, pvFcf, pvTv} = calcEV(f, wacc, g);
+    const eq = ev - f.netDebt;
+    const ctrl = eq*(1+prem);
+    results[key] = {ev,eq,ctrl};
+    if(!show[key]) return;
+
+    const card = document.createElement('div');
+    card.className = 'card on';
+    card.style.setProperty('--accentc', f.color);
+    card.innerHTML = `
+      <h3><span class="dot" style="background:${f.color}"></span>${f.label}</h3>
+      <div class="desc">${f.desc}</div>
+      <div class="metric"><span class="label">事業価値(EV)</span><span class="value">${fmtBn(ev)}億円</span></div>
+      <div class="metric"><span class="label">　うちFCF現在価値</span><span class="value">${fmtBn(pvFcf)}億円</span></div>
+      <div class="metric"><span class="label">　うちTV現在価値</span><span class="value">${fmtBn(pvTv)}億円</span></div>
+      <div class="metric"><span class="label">ネットデット控除</span><span class="value">▲${fmtBn(f.netDebt)}億円</span></div>
+      <div class="metric"><span class="label">株式価値(100%)</span><span class="value big">${fmtBn(eq)}億円</span></div>
+      <div class="metric"><span class="label">支配権プレミアム込み</span><span class="value big" style="color:${f.color}">${fmtBn(ctrl)}億円</span></div>
+    `;
+    wrap.appendChild(card);
+  });
+
+  drawChart(results, show);
+  drawAssumptions();
+}
+
+function drawChart(results, show){
+  const svg = document.getElementById('barChart');
+  const keys = Object.keys(FCF).filter(k=>show[k]);
+  const w=640, h=220, padL=50, padB=28, padT=14;
+  const maxVal = Math.max(OFFER_PRICE_BN, ...keys.map(k=>results[k].ctrl/100)) * 1.15;
+  const gap = keys.length ? (w-padL-30)/keys.length : 0;
+  const barW = gap*0.5;
+
+  let svgContent = "";
+  svgContent += `<line x1="${padL}" y1="${h-padB}" x2="${w-10}" y2="${h-padB}" stroke="#d8dce2"/>`;
+
+  const offerY = h-padB - (OFFER_PRICE_BN/maxVal)*(h-padB-padT);
+  svgContent += `<line x1="${padL}" y1="${offerY}" x2="${w-10}" y2="${offerY}" stroke="#dc2626" stroke-dasharray="5,4" stroke-width="1.5"/>`;
+  svgContent += `<text x="${w-14}" y="${offerY-6}" text-anchor="end" class="bar-value" fill="#dc2626">買主提示 7,000億円</text>`;
+
+  keys.forEach((k,i)=>{
+    const f = FCF[k];
+    const val = results[k].ctrl/100;
+    const barH = (val/maxVal)*(h-padB-padT);
+    const x = padL + i*gap + gap*0.25;
+    const y = h-padB-barH;
+    svgContent += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${f.color}" rx="4"/>`;
+    svgContent += `<text x="${x+barW/2}" y="${y-8}" text-anchor="middle" class="bar-value">${val.toLocaleString('ja-JP',{maximumFractionDigits:0})}億円</text>`;
+    svgContent += `<text x="${x+barW/2}" y="${h-padB+16}" text-anchor="middle" class="bar-label">${k}</text>`;
+  });
+  svg.innerHTML = svgContent;
+}
+
+function drawAssumptions(){
+  const table = document.getElementById('assumpTable');
+  table.innerHTML = `
+    <tr><th></th><th>A(現状)</th><th>B(ND調整)</th></tr>
+    <tr><td>27/3期 FCF</td><td>21,667</td><td>21,667</td></tr>
+    <tr><td>28/3期 FCF</td><td>26,865</td><td>26,865</td></tr>
+    <tr><td>29/3期 FCF</td><td>32,336</td><td>32,336</td></tr>
+    <tr><td>30/3期 FCF</td><td>38,736</td><td>38,736</td></tr>
+    <tr><td>ネットデット</td><td>94,106</td><td>99,682</td></tr>
+  `;
+}
+
+function setWacc(v){ document.getElementById('waccSlider').value=v; render(); }
+function setG(v){ document.getElementById('gSlider').value=v; render(); }
+
+['waccSlider','gSlider','premSlider','chkA','chkB'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', render);
+});
+
+render();
+</script>
+</body>
+</html>
